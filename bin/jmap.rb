@@ -4,9 +4,10 @@ require 'json'
 
 # Public: A JSON backed persistent map.
 class JMap
-  def initialize(json_file, bk_suffix=".bk")
+  def initialize(json_file, bk_suffix: ".bk", sorted: false)
     @json_file = json_file
     @bk_suffix = bk_suffix
+    @sorted = sorted
   end
 
   def [](key)
@@ -24,6 +25,10 @@ class JMap
 
       m = JSON.parse(json.empty? ? "{}" : json)
       retval = yield m
+      if @sorted
+        m, unordered = {}, m
+        unordered.keys.sort.each{|k| m[k] = unordered[k]}
+      end
 
       f.rewind
       f.puts(JSON.pretty_generate(m))
@@ -41,6 +46,7 @@ if $0 == __FILE__
     o.banner += " <map.json>..."
     o.on("-c", "--[no-]create", "Create missing maps")
     o.on("-b", "--backup SUFFIX", "Use file SUFFIX for backups, empty to disable")
+    o.on("-o", "--[no-]order", "Whether or not to sort the map (otherwise append updates)")
     o.on("-s", "--set key=JSON", "Set a top-level key to the JSON value") do |kv|
       k,v = kv.split("=", 2)
       raise "Must be <key>=<value>: #{kv.inspect}" unless v
@@ -58,8 +64,8 @@ if $0 == __FILE__
       FileUtils.mkdir_p(File.dirname(path))
       FileUtils.touch(path)
     end
-    bk_suffix = $opts.fetch(:backup, ".bk")
-    JMap.new(path, !bk_suffix.empty? && bk_suffix).transaction do |m|
+    bk_suffix = ->(s){s.empty? ? nil : s}.($opts.fetch :backup, ".bk")
+    JMap.new(path, bk_suffix: bk_suffix, sorted: $opts[:order]).transaction do |m|
       ops.each{|op| op.call m}
     end
   end

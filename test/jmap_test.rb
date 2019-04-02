@@ -6,7 +6,7 @@ require 'tempfile'
 class JMapTest < Minitest::Test
   def test_transactions
     Tempfile.open("jmap_test") do |f|
-      jMap = JMap.new f.path, nil
+      jMap = JMap.new f.path, bk_suffix: nil
       jMap["1+2+...+12"] = 0
       threads = 1.upto(12).each_slice(3).map do |section|
         Thread.new(section) do |ns|
@@ -32,9 +32,12 @@ class JMapTest < Minitest::Test
         assert_equal %Q{null\n"bar"\n}, `#{JMAP_BIN} -b "" -g foo -s foo='"bar"' -g foo #{f.path}`
         assert_equal [f.path], Dir.glob(f.path+"*")
 
-        assert_equal %Q{"bar"\n123\n}, `#{JMAP_BIN} -g foo -s bar=123 -d foo -g bar #{f.path}`
+        assert_equal %Q{"bar"\n123\n}, `#{JMAP_BIN} -g foo -s baz=123 -d foo -s bar=null -g baz #{f.path}`
         assert_equal({"foo"=>"bar"}, JSON.parse(File.read f.path+".bk"))
-        assert_equal({"bar"=>123}, JSON.parse(File.read f.path))
+        assert_equal({"baz"=>123, "bar"=>nil}, JSON.parse(File.read f.path))
+
+        assert_empty `#{JMAP_BIN} -o #{f.path}`
+        assert_equal({"bar"=>nil, "baz"=>123}, JSON.parse(File.read f.path))
 
         missing = f.path+"_missing"
         refute system(JMAP_BIN, missing, err: :close)
