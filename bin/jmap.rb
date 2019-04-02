@@ -26,7 +26,7 @@ class JMap
       retval = yield m
 
       f.rewind
-      f.write(JSON.pretty_generate(m))
+      f.puts(JSON.pretty_generate(m))
       f.truncate(f.pos)
 
       retval
