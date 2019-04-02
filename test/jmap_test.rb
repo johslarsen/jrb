@@ -7,20 +7,20 @@ class JMapTest < Minitest::Test
   def test_transactions
     Tempfile.open("jmap_test") do |f|
       jMap = JMap.new f.path, nil
-      jMap["1+2+...100"] = 0
-      threads = 1.upto(100).each_slice(10).map do |section|
+      jMap["1+2+...+12"] = 0
+      threads = 1.upto(12).each_slice(3).map do |section|
         Thread.new(section) do |ns|
           ns.each do |n|
-            jm = n < 50 ? JMap.new(f.path) : jMap
+            jm = n > 8 ? JMap.new(f.path) : jMap
             jm.transaction do |m|
-              m["1+2+...100"] += n
+              m["1+2+...+12"] += n
             end
           end
         end
       end
       threads.each{|t| t.join}
 
-      assert_equal 5050, jMap["1+2+...100"]
+      assert_equal 1.upto(12).inject(0, &:+), jMap["1+2+...+12"]
     end
   end
 
