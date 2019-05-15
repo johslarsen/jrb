@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 require 'rake/testtask'
 Rake::TestTask.new do |t|
-  t.libs << File.join(File.dirname(File.dirname __FILE__), "bin")
+  t.libs.concat(["bin","lib"].map{|p|File.join(File.dirname(File.dirname __FILE__), p)})
   t.test_files = Dir.glob "#{File.dirname __FILE__}/**/*_test.rb"
   t.warning = true
 end
