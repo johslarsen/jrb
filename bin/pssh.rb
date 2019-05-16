@@ -12,22 +12,20 @@ class PSSH
   # Public: Execute this command, and put one output file per host in
   # output_dir (or a tmpdir if nil)
   #
-  # Returns output_dir.
+  # Returns Integer with first non-0 exit status (or 0 if all success).
   def execute(cmd, output_dir: nil, stdin: nil, &host_finished)
-    output_dir ||= Dir.mktmpdir("pssh")
-    host_finished ||= Proc.new do |path,status|
-      $stderr.puts("#{path}: #{status==0? "Success" : "Failed #{status}"}")
-    end
+    output_dir ||= Dir.mktmpdir("pssh-")
+    host_finished ||= progress_logger
     run_in_parallel(cmd, output_dir, stdin: stdin, &host_finished)
-    output_dir
   end
 
   # Public: Execute this command, and write host prefixed lines to stdout.
   def stdout(cmd, stdout: $stdout, stdin: nil)
-    Dir.mktmpdir("pssh") do |dir|
+    progress = progress_logger
+    Dir.mktmpdir("pssh-") do |dir|
       execute(cmd, output_dir: dir, stdin: stdin) do |path,status|
         host = File.basename path
-        $stderr.puts("#{host}: #{status==0? "Success" : "Failed #{status}"}")
+        progress.call host, status
         File.open(path) do |f|
           f.each_line do |l|
             stdout.print("#{host}: #{l}")
@@ -48,10 +46,22 @@ class PSSH
       pgroup ||= Process.getpgid(pid)
       [pid, host]
     end.to_h
+
+    overall_status = nil
     until pid2host.empty?
       pid, status = Process.wait2(-pgroup)
       host = pid2host.delete pid
       host_finished.call(File.join(dir, host), status)
+      overall_status = status.exitstatus unless status.success?
+    end
+    overall_status ||= 0
+  end
+
+  def progress_logger
+    i = 1.step
+    Proc.new do |host,status|
+      msg = status.success? ? "Success" : "Failed #{status.exitstatus}"
+      $stderr.puts "#{host}: (#{i.next}/#{@hosts.size}) #{msg}"
     end
   end
 
@@ -63,6 +73,7 @@ if $0 == __FILE__
     o.banner << " HOST... [CMD]"
     o.on("-f", "--file PATH", "Instead of CMD, execute this script remotely")
     o.on("-a", "--file-argument ARGS", "Arguments called to the remote -f script")
+    o.on("-l", "--logdir=[DIR]", "Log to DIR/<host> (tmpdir if not specified) instead of stdout")
   end.permute!(ARGV, into: $opts={})
   hosts, pssh_args = if $opts[:file]
     s = "/tmp/pssh_$$.sh"
@@ -72,5 +83,10 @@ if $0 == __FILE__
     [ARGV[0..-2], [ARGV[-1]]]
   end
   pssh = PSSH.new(hosts)
-  pssh.stdout(*pssh_args)
+  status = if $opts.has_key? :logdir
+    pssh.execute(*pssh_args, output_dir: $opts[:logdir])
+  else
+    pssh.stdout(*pssh_args)
+  end
+  exit status
 end
