@@ -47,14 +47,12 @@ class PSSH
       [pid, host]
     end.to_h
 
-    overall_status = nil
-    until pid2host.empty?
+    pid2host.keys.map do
       pid, status = Process.wait2(-pgroup)
       host = pid2host.delete pid
       host_finished.call(File.join(dir, host), status)
-      overall_status = status.exitstatus unless status.success?
-    end
-    overall_status ||= 0
+      status.exitstatus
+    end.max
   end
 
   def progress_logger

@@ -18,7 +18,7 @@ class HttpCache
   def cached(method, uri, headers={}, body=nil)
     path = entry(uri)
     return [File.read(path), nil] if valid_entry(path)
-    res = uncached(method, uri, headers)
+    res = uncached(method, uri, headers, body)
     [res.body, res]
   end
 
