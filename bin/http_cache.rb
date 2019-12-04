@@ -35,9 +35,12 @@ class HttpCache
     update(res, original_uri)
   end
 
-  def entry(uri)
+  def entry_relative(uri)
     uri = uri.to_s =~ %r{://} ? URI(uri) : URI("http://#{uri}")
-		"#{@toplevel}/#{uri.host.split(".").reverse.join(".")}/#{uri.path}?#{uri.query}"
+    "#{uri.host.split(".").reverse.join(".")}/#{uri.path}?#{uri.query}"
+  end
+  def entry(uri)
+		"#{@toplevel}/#{entry_relative(uri)}"
   end
   def cached?(uri)
     File.exist? entry(uri)
@@ -62,6 +65,7 @@ class HttpCache
 
     opath = entry(original_uri)
     if path != opath
+      FileUtils.rm_f opath
       FileUtils.mkdir_p(File.dirname(opath))
       FileUtils.ln path, opath
     end
@@ -100,5 +104,5 @@ end
 if $0 == __FILE__
   require 'optparse'
   uri, _ = OptionParser.new{|o| o.banner += " <uri>"}.permute!
-  puts HttpCache.new.get(uri)
+  print HttpCache.new.get(uri)
 end
