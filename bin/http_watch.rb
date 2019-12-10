@@ -10,11 +10,11 @@ end.permute!(into: $opts||={})
 dir = $opts.fetch(:root, "/tmp/http_cache")
 
 # assuming caller have it in path to give more room to URI in watch title
-cmd = ["http_crawl.rb", uri, "-c", "-r", dir]
+cmd = ["http_crawl.rb", uri, "-cs", "-r", dir]
 head = `git --git-dir=#{Shellwords.escape "#{dir}/.git"} rev-parse HEAD 2>&1`
 cmd << "-h" << head if $? == 0
 
-watch = ["watch", "-xcn", $opts.fetch(:interval, 60).to_s]
+watch = ["watch", "-bxcn", $opts.fetch(:interval, 60).to_s]
 watch << "-d" if $opts[:differences]
 watch.concat cmd
 exec(*watch)

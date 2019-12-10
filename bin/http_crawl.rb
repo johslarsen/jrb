@@ -59,6 +59,7 @@ if $0 == __FILE__
     o.on "-h", "--head HASH", "Fallback commit to diff with if site is unchanged"
     o.on "-U", "--unified N", "Display N lines of context before/after changes"
     o.on "-c", "--[no-]color", "Enable/disable diff output coloring"
+    o.on "-s", "--[no-]status", "Exit 1 if site differ, 0 if not"
   end.permute!(into: $opts||={})
   crawler = HttpCrawler.new($opts.fetch(:root, "/tmp/http_cache"))
   commit = crawler.get(uri)
@@ -67,5 +68,8 @@ if $0 == __FILE__
     diff_opts = ["-U#{$opts.fetch(:unified, 1)}"]
     diff_opts << "--color=#{$opts[:color] ? "always" : "none"}" if $opts.has_key? :color
     crawler.diff(uri, origin, opts: diff_opts)
+  end
+  if $opts[:status] && commit
+    exit 1 # exit like diff to indicate that site differs from previous version
   end
 end
