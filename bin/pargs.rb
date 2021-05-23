@@ -147,11 +147,11 @@ class PMapLinewise
     @pfor = PMap.new(linewise_background_reader(io), num_threads: num_threads, &worker)
   end
 
-  extend Forwardable
-  private attr_reader :pfor
-  def_delegators :pfor, :each, :each_progress_printed, :progress
-
   private
+
+  extend Forwardable
+  attr_reader :pfor
+  def_delegators :pfor, :each, :each_progress_printed, :progress
 
   def linewise_background_reader(io)
     Enumerator.new do |yielded|
@@ -188,8 +188,10 @@ class PArgs
     end
   end
 
+  private
+
   extend Forwardable
-  private attr_reader :pfor
+  attr_reader :pfor
   def_delegators :pfor, :each, :each_progress_printed, :progress
 end
 
