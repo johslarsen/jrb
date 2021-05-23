@@ -37,7 +37,7 @@ module ProgressPrintable
     cl = stderr.tty? ? CLEAR_LINE : ""
     nl = "\n"
     each do |*args, **kvargs|
-      restOfProgressLine, out, err =  yield *args, **kvargs
+      restOfProgressLine, out, err =  yield(*args, **kvargs)
       nl = stderr.tty? && err.empty? && (out.empty? || !stdout.tty?) ? "" : "\n"
       stderr.print "#{cl}[#{progress.join("/")}] #{restOfProgressLine}#{nl}", err
       stderr.flush
@@ -144,14 +144,14 @@ class PMapLinewise
   # Yields io#each_line in parallel threads. Returned Objects are yielded
   # one-by-one to the PMapLinewise#each call in the thread who called it.
   def initialize(io, num_threads:PMap::DEFAULT_NUM_THREADS, &worker)
-    @pfor = PMap.new(linewise_background_reader(io), num_threads: num_threads, &worker)
+    @pmap = PMap.new(linewise_background_reader(io), num_threads: num_threads, &worker)
   end
 
   private
 
   extend Forwardable
-  attr_reader :pfor
-  def_delegators :pfor, :each, :each_progress_printed, :progress
+  attr_reader :pmap
+  def_delegators :pmap, :each, :each_progress_printed, :progress
 
   def linewise_background_reader(io)
     Enumerator.new do |yielded|
@@ -181,7 +181,7 @@ class PArgs
   # parameters in parallel threads.
   def initialize(cmd = ARGV, io = $stdin, num_threads: PMap::DEFAULT_NUM_THREADS)
     @cmd = cmd
-    @pfor = PMapLinewise.new(io, num_threads: num_threads) do |line|
+    @pmap = PMapLinewise.new(io, num_threads: num_threads) do |line|
       parameters = line.split("\0")
       cmd = @cmd.map{|arg| arg == "{}" ? parameters.shift : arg} + parameters
       [*Open3.capture3(*cmd), line, cmd]
@@ -191,8 +191,8 @@ class PArgs
   private
 
   extend Forwardable
-  attr_reader :pfor
-  def_delegators :pfor, :each, :each_progress_printed, :progress
+  attr_reader :pmap
+  def_delegators :pmap, :each, :each_progress_printed, :progress
 end
 
 if $0 == __FILE__
