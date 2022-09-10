@@ -1,5 +1,3 @@
 #!/usr/bin/env ruby
 require 'minitest/autorun'
-unless defined? Minitest::Test
-  Minitest::Test = MiniTest::Unit::TestCase
-end
+Minitest::Test = MiniTest::Unit::TestCase unless defined? Minitest::Test

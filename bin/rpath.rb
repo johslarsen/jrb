@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 module RPath
-
   # Public: Determine the relative path to target from directory
   def self.relative(target, directory)
     target = File.expand_path(target)
@@ -10,7 +9,7 @@ module RPath
     return "./" if target == directory
 
     prefix = shared_root(target, directory)
-    "../"*(directory.count("/") - prefix.count("/")) + target[prefix.length..-1]
+    "../" * (directory.count("/") - prefix.count("/")) + target[prefix.length..-1]
   end
 
   def self.shared_root(*paths)
@@ -19,20 +18,20 @@ module RPath
   end
 
   def self.shared_prefix(*strings)
-    shortest = strings.min_by{|e| e.length}
-    not_shared = shortest.each_char.with_index.find do |c,i|
-      !strings.all?{|p| p[i] == c}
+    shortest = strings.min_by(&:length)
+    not_shared = shortest.each_char.with_index.find do |c, i|
+      !strings.all? { |p| p[i] == c }
     end
     not_shared ? shortest[0...not_shared[1]] : shortest
   end
 end
 
-if $0 == __FILE__
+if $PROGRAM_NAME == __FILE__
   require 'optparse'
   OptionParser.new do |o|
     o.banner += " <target>... <directory>"
     o.on("-L", "--[no-]dereference", "Follow symlinks (dirname of all arguments must exist)")
-  end.permute!(into: ($opts={}))
+  end.permute!(into: ($opts = {}))
 
   directory = ARGV[-1]
   directory = File.realdirpath(directory) if $opts[:dereference]

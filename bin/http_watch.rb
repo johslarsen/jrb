@@ -1,12 +1,12 @@
 #!/usr/bin/env ruby
 require 'optparse'
 require 'shellwords'
-uri, _ = OptionParser.new do |o|
+uri, = OptionParser.new do |o|
   o.banner += " URI"
   o.on "-d", "--[no-]differences", "Highlight the differences between successive updates."
   o.on "-r", "--root DIR", "Git repo to store the crawled site"
   o.on "-n", "--interval N", "Refresh every N seconds"
-end.permute!(into: $opts||={})
+end.permute!(into: $opts ||= {})
 dir = $opts.fetch(:root, "/tmp/http_cache")
 
 # assuming caller have it in path to give more room to URI in watch title

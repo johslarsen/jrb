@@ -12,14 +12,14 @@ class GhMirrorSync
     users.each do |user|
       repositories = self.class.list(user)
       repositories.each_with_index do |url, i|
-        puts("#{user} %02d/%02d #{url}"%[i+1, repositories.length])
+        puts(format("#{user} %02d/%02d #{url}", i + 1, repositories.length))
         path = "#{@root}/#{URI(url).path[1..-1]}.git"
         outerr, status = if File.exist?(path)
                            Open3.capture2e("git", "--git-dir=#{path}", "fetch", "--all")
                          else
                            Open3.capture2e("git", "clone", "--mirror", url, path)
                          end
-        $stderr.puts(outerr) unless status.success?
+        warn(outerr) unless status.success?
       end
     end
   end
@@ -29,18 +29,17 @@ class GhMirrorSync
     if status.success?
       JSON.parse(out)
     else
-      $stderr.puts("Failed to list repositories owned by #{user.inspect}")
+      warn("Failed to list repositories owned by #{user.inspect}")
       []
-    end.map{|o| o["url"]}
+    end.map { |o| o["url"] }
   end
-
 end
 
-if $0 == __FILE__
+if $PROGRAM_NAME == __FILE__
   require 'optparse'
   users = OptionParser.new do |o|
     o.banner += " GITHUB_USER..."
     o.on("-C", "--directory DIR", "Put repository hierarchy into here")
-  end.permute!(into: $opts||={})
+  end.permute!(into: $opts ||= {})
   GhMirrorSync.new($opts.fetch(:directory, ".")).sync(users)
 end

@@ -37,9 +37,9 @@ module ProgressPrintable
     cl = stderr.tty? ? CLEAR_LINE : ""
     nl = "\n"
     each do |*args, **kvargs|
-      restOfProgressLine, out, err =  yield(*args, **kvargs)
+      rest_of_progress_line, out, err = yield(*args, **kvargs)
       nl = stderr.tty? && err.empty? && (out.empty? || !stdout.tty?) ? "" : "\n"
-      stderr.print "#{cl}[#{progress.join("/")}] #{restOfProgressLine}#{nl}", err
+      stderr.print "#{cl}[#{progress.join('/')}] #{rest_of_progress_line}#{nl}", err
       stderr.flush
       unless out.empty?
         stdout.print out
@@ -56,7 +56,7 @@ class PMap
   include Enumerable
   include ProgressPrintable
 
-  DEFAULT_NUM_THREADS = Integer(ENV.fetch("NUM_THREADS", 2*Etc.nprocessors))
+  DEFAULT_NUM_THREADS = Integer(ENV.fetch("NUM_THREADS", 2 * Etc.nprocessors))
 
   # Public: When PMap#each is called this will:
   # Yield same as enumerator, but in parallel threads. Returned Objects are
@@ -65,7 +65,7 @@ class PMap
     @num_threads = num_threads
     @enumerator = enumerator.each
     @worker = worker
-    @numInput = @numOutput = 0
+    @num_input = @num_output = 0
   end
 
   # Public: Map in parallel the enumerator with the initialization block, and
@@ -74,35 +74,40 @@ class PMap
   # Throws non-StandardError Exceptions if initialization block threw that.
   def each
     if block_given?
-      @numInput = @numOutput = 0
-      input, output = Queue.new, Queue.new
+      @num_input = @num_output = 0
+      input = Queue.new
+      output = Queue.new
       threads = []
       begin
         @num_threads.times.map do
           threads << Thread.new do
-            while (args_kvargs = input.shift) do
+            while (args_kvargs = input.shift)
               begin
                 output << @worker.call(*args_kvargs[0], **args_kvargs[1])
-              rescue Exception => e # rescue everything, because we are in a thread
+              rescue Exception => e # rubocop:disable Lint/RescueException
+                # rescue everything, because we are in a thread
                 output << e
               end
             end
           end
-        end # start them before adding input,
+        end
+
+        # start them before adding input,
         @enumerator.each do |*args, **kvargs| # because this might be a lazy enumeration
-          @numInput += 1
+          @num_input += 1
           input << [args, kvargs]
         end
         input.close # so threads eventually ends gracefully
 
         until input.empty? && output.empty?
-          @numOutput += 1
+          @num_output += 1
           yield reraise_non_standard_error(output.shift)
-        end # but threads may still have jobs in transit,
+        end
 
+        # but threads may still have jobs in transit,
         join_all(threads)
         until output.empty? # from final in-transit jobs
-          @numOutput += 1
+          @num_output += 1
           yield reraise_non_standard_error(output.shift)
         end
 
@@ -118,7 +123,7 @@ class PMap
 
   # Returns [Integer #processed, Integer #total]
   def progress
-    [@numOutput, @numInput]
+    [@num_output, @num_input]
   end
 
   private
@@ -131,9 +136,8 @@ class PMap
   end
 
   def reraise_non_standard_error(exception_or_result)
-    if Exception === exception_or_result && !(StandardError === exception_or_result)
-      raise exception_or_result
-    end
+    raise exception_or_result if exception_or_result.is_a?(Exception) && !exception_or_result.is_a?(StandardError)
+
     exception_or_result
   end
 end
@@ -143,7 +147,7 @@ class PMapLinewise
   # Public: When PMapLinewise#each is called this will:
   # Yields io#each_line in parallel threads. Returned Objects are yielded
   # one-by-one to the PMapLinewise#each call in the thread who called it.
-  def initialize(io, num_threads:PMap::DEFAULT_NUM_THREADS, &worker)
+  def initialize(io, num_threads: PMap::DEFAULT_NUM_THREADS, &worker)
     @pmap = PMap.new(linewise_background_reader(io), num_threads: num_threads, &worker)
   end
 
@@ -151,6 +155,7 @@ class PMapLinewise
 
   extend Forwardable
   attr_reader :pmap
+
   def_delegators :pmap, :each, :each_progress_printed, :progress
 
   def linewise_background_reader(io)
@@ -183,7 +188,7 @@ class PArgs
     @cmd = cmd
     @pmap = PMapLinewise.new(io, num_threads: num_threads) do |line|
       parameters = line.split("\0")
-      cmd = @cmd.map{|arg| arg == "{}" ? parameters.shift : arg} + parameters
+      cmd = @cmd.map { |arg| arg == "{}" ? parameters.shift : arg } + parameters
       [*Open3.capture3(*cmd), line, cmd]
     end
   end
@@ -192,21 +197,22 @@ class PArgs
 
   extend Forwardable
   attr_reader :pmap
+
   def_delegators :pmap, :each, :each_progress_printed, :progress
 end
 
-if $0 == __FILE__
+if $PROGRAM_NAME == __FILE__
   Signal.trap("SIGPIPE", "SYSTEM_DEFAULT")
   if ARGV.empty?
-    $stderr.puts <<EOF
-[NUM_THREADS=#{PMap::DEFAULT_NUM_THREADS}] #{$0} COMMAND [ARGS]...
-Run in parallel COMMAND with ARGS and "\\0" separated arguments read linewise
-from input that replaces "{}" one-by-one in ARGS and/or appends to them.
-EOF
+    warn <<~EOF
+      [NUM_THREADS=#{PMap::DEFAULT_NUM_THREADS}] #{$PROGRAM_NAME} COMMAND [ARGS]...
+      Run in parallel COMMAND with ARGS and "\\0" separated arguments read linewise
+      from input that replaces "{}" one-by-one in ARGS and/or appends to them.
+    EOF
     exit 1
   end
   PArgs.new.each_progress_printed do |exception_or_out, err, status, line|
-    if Exception === exception_or_out
+    if exception_or_out.is_a?(Exception)
       [exception_or_out, "", "\t#{exception_or_out.backtrace.join("\n\t")}\n"]
     else
       exit_msg = status.success? ? nil : " (#{status})"

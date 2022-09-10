@@ -23,7 +23,7 @@ class PSSH
   def stdout(cmd, stdout: $stdout, stdin: nil)
     progress = progress_logger
     Dir.mktmpdir("pssh-") do |dir|
-      execute(cmd, output_dir: dir, stdin: stdin) do |path,status|
+      execute(cmd, output_dir: dir, stdin: stdin) do |path, status|
         host = File.basename path
         progress.call host, status
         File.open(path) do |f|
@@ -42,7 +42,7 @@ class PSSH
     pid2host = @hosts.map do |host|
       outerr = File.join dir, host
       ssh = ['ssh', *@ssh_opts, host, cmd]
-      pid = Process.spawn(*ssh, pgroup: pgroup, in: stdin||:close, out: outerr, err: outerr)
+      pid = Process.spawn(*ssh, pgroup: pgroup, in: stdin || :close, out: outerr, err: outerr)
       pgroup ||= Process.getpgid(pid)
       [pid, host]
     end.to_h
@@ -57,34 +57,33 @@ class PSSH
 
   def progress_logger
     i = 1.step
-    Proc.new do |host,status|
+    proc do |host, status|
       msg = status.success? ? "Success" : "Failed #{status.exitstatus}"
-      $stderr.puts "#{host}: (#{i.next}/#{@hosts.size}) #{msg}"
+      warn "#{host}: (#{i.next}/#{@hosts.size}) #{msg}"
     end
   end
-
 end
 
-if $0 == __FILE__
+if $PROGRAM_NAME == __FILE__
   require 'optparse'
   OptionParser.new do |o|
     o.banner << " HOST... [CMD]"
     o.on("-f", "--file PATH", "Instead of CMD, execute this script remotely")
     o.on("-a", "--file-argument ARGS", "Arguments called to the remote -f script")
     o.on("-l", "--logdir=[DIR]", "Log to DIR/<host> (tmpdir if not specified) instead of stdout")
-  end.permute!(ARGV, into: $opts={})
+  end.permute!(ARGV, into: $opts = {})
   hosts, pssh_args = if $opts[:file]
-    s = "/tmp/pssh_$$.sh"
-    cmd = "cat > #{s}; chmod +x #{s}; #{s} #{$opts[:"file-argument"]}"
-    [ARGV, [cmd, stdin: $opts[:file]]]
-  else
-    [ARGV[0..-2], [ARGV[-1]]]
-  end
+                       s = "/tmp/pssh_$$.sh"
+                       cmd = "cat > #{s}; chmod +x #{s}; #{s} #{$opts[:"file-argument"]}"
+                       [ARGV, [cmd, { stdin: $opts[:file] }]]
+                     else
+                       [ARGV[0..-2], [ARGV[-1]]]
+                     end
   pssh = PSSH.new(hosts)
-  status = if $opts.has_key? :logdir
-    pssh.execute(*pssh_args, output_dir: $opts[:logdir])
-  else
-    pssh.stdout(*pssh_args)
-  end
+  status = if $opts.key? :logdir
+             pssh.execute(*pssh_args, output_dir: $opts[:logdir])
+           else
+             pssh.stdout(*pssh_args)
+           end
   exit status
 end

@@ -9,9 +9,9 @@ module OptionParserIntoBackport
   def make_switch(opts, block = nil)
     @backport_into ||= nil
     if block.nil?
-      m = opts[1] && opts[1].match(/^--([^ ]+)/)
-      m ||= opts[0] && opts[0].match(/^-([^ ]+)/)
-      block = ->(v){@backport_into[m[1].to_sym] = v if @backport_into}
+      m = opts[1]&.match(/^--([^ ]+)/)
+      m ||= opts[0]&.match(/^-([^ ]+)/)
+      block = ->(v) { @backport_into[m[1].to_sym] = v if @backport_into }
     end
     super(opts, block)
   end
@@ -23,6 +23,7 @@ module OptionParserIntoBackport
     argv[0, 0] = nonopts
     argv
   end
+
   def parse!(argv = default_argv, into: nil)
     if ENV.include?('POSIXLY_CORRECT')
       order!(argv, into: into)
@@ -30,16 +31,19 @@ module OptionParserIntoBackport
       permute!(argv, into: into)
     end
   end
+
   def order(*argv, into: nil, &nonopt)
-    argv = argv[0].dup if argv.size == 1 and Array === argv[0]
+    argv = argv[0].dup if argv.size == 1 && argv[0].is_a?(Array)
     order!(argv, into: into, &nonopt)
   end
+
   def permute(*argv, into: nil)
-    argv = argv[0].dup if argv.size == 1 and Array === argv[0]
+    argv = argv[0].dup if argv.size == 1 && argv[0].is_a?(Array)
     permute!(argv, into: into)
   end
+
   def parse(*argv, into: nil)
-    argv = argv[0].dup if argv.size == 1 and Array === argv[0]
+    argv = argv[0].dup if argv.size == 1 && argv[0].is_a?(Array)
     parse!(argv, into: into)
   end
 end

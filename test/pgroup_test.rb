@@ -8,30 +8,30 @@ class PGroupTest < Minitest::Test
 
   def test_cli
     Tempfile.open("pgroup_test") do |f|
-      f.write <<EOF
-foo: foo
-foo: bar
-foo: baz
-bar: bar
-EOF
+      f.write <<~EOF
+        foo: foo
+        foo: bar
+        foo: baz
+        bar: bar
+      EOF
       f.flush
 
-      assert_equal <<EOF, `#{PGROUP_BIN} #{f.path}`
-foo:
-foo
-baz
+      assert_equal <<~EOF, `#{PGROUP_BIN} #{f.path}`
+        foo:
+        foo
+        baz
 
-bar, foo:
-bar
-EOF
-      assert_equal <<EOF, `#{PGROUP_BIN} -s -d':' #{f.path}`
-foo:
- baz
- foo
+        bar, foo:
+        bar
+      EOF
+      assert_equal <<~EOF, `#{PGROUP_BIN} -s -d':' #{f.path}`
+        foo:
+         baz
+         foo
 
-bar, foo:
- bar
-EOF
+        bar, foo:
+         bar
+      EOF
     end
   end
 end
