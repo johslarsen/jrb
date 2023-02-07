@@ -4,13 +4,13 @@ require 'open3'
 
 # Public: Run a command, but kill it if takes too long.
 # Returns [stdout String, Process.Status or nil if timed out]
-def timeboxed2(*cmd, timeout: 1.0, **opts)
+def timeboxed2(*cmd, timeout: 1.0, term_timeout: 1.0, **opts)
   result = ""
   deadline = Time.now + timeout
-  status = Open3.popen2(*cmd, **opts) do |_, out, thread|
+  status = Open3.popen2(*cmd, **opts) do |_, out, waiter|
     until out.closed?
       if deadline < Time.now
-        thread.kill
+        kill_gracefully(waiter, timeout: term_timeout)
         break
       end
 
@@ -24,9 +24,18 @@ def timeboxed2(*cmd, timeout: 1.0, **opts)
         end
       end
     end
-    thread.value
+    waiter.value
   end
   [result, status]
+end
+
+# Public: Kill and join a Process::Waiter thread first with TERM, then try again after timeout seconds with KILL
+def kill_gracefully(waiter, timeout: 1.0)
+  Process.kill("TERM", waiter.pid)
+  return waiter unless waiter.join(timeout).nil?
+
+  Process.kill("KILL", waiter.pid)
+  waiter.join
 end
 
 if $PROGRAM_NAME == __FILE__
@@ -36,5 +45,5 @@ if $PROGRAM_NAME == __FILE__
   end.permute!(into: ($opts = {}))
   stdout, result = timeboxed2(*ARGV, timeout: $opts.fetch(:timeout, 1.0))
   print stdout
-  exit result ? result.exitstatus : 110 # ETIMEDOUT
+  exit result&.exitstatus || 110 # ETIMEDOUT
 end

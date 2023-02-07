@@ -27,6 +27,14 @@ class TimeboxedTest < Minitest::Test
     assert_equal(["foo\nbar\n", nil], out_status(*timeboxed2("echo foo; sleep 0.001; echo bar; sleep 1; echo baz", timeout: 0.01)))
   end
 
+  def test_resilient_cutoff
+    assert_equal(["", nil], out_status(*timeboxed2("trap '' TERM; sleep 0.123456789", timeout: 0.01, term_timeout: 0.01)))
+
+    # The command above is a shell. Signaling it with KILL terminates it immediately and orphans its children
+    leftover_children = `ps -eo args`.lines.grep(/0\.123456789/).map { |l| l.split.first }
+    assert_equal(["sleep"], leftover_children) # did our best and killed of the shell at least
+  end
+
   private
 
   def out_status(out, status)
